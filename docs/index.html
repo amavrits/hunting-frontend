@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prey-Predator Game with Input Toggle</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      position: relative;
+    }
+    /* Toast container for dynamic messages */
+    #toastContainer {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast {
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 10px 20px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      font-size: 16px;
+      opacity: 0;
+      animation: fadeInOut 3s forwards;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(-20px); }
+      10% { opacity: 1; transform: translateY(0); }
+      90% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-20px); }
+    }
+    /* Role display styling */
+    #roleDisplay {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: black;
+    }
+    #roleText {
+      font-weight: bold;
+    }
+    #timer {
+      font-size: 20px;
+      margin-left: 130px;
+      margin-top: 10px;
+      margin-bottom: 5px;
+      color: black;
+    }
+    /* Container for game plot and controls */
+    #gameContainer {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    /* Rendered image styling: force square and max-width 500px */
+    #renderedImage {
+      border: 1px solid #000;
+      width: 500px;
+      height: 500px;
+      object-fit: contain;
+    }
+    /* Controls container */
+    #controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    /* Row for buttons, message, and input toggle */
+    #buttonMessageRow {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 20px;
+    }
+    /* Container for buttons */
+    #buttonsContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    /* Textbox styling */
+    #messageBox {
+      border: 1px solid #000;
+      padding: 10px;
+      font-size: 16px;
+      min-width: 50px;
+      max-width: 400px;
+      text-align: center;
+      margin-left: 100px;
+      margin-top: 10px;
+      word-break:break-all;
+    }
+    /* Input toggle container styling */
+    #inputToggle {
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #333;
+    }
+    /* Virtual Joystick styling */
+    #joystickContainer {
+      position: fixed;
+      top: 300px;
+      left: 550px;
+      width: 150px;
+      height: 150px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      touch-action: none;
+      z-index: 900;
+      display: none; /* Hidden by default; shown when joystick is selected */
+    }
+    #joystickBase {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #joystickKnob {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 50%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Prey-Predator Game</h1>
+  <!-- Toast container -->
+  <div id="toastContainer"></div>
+  <!-- Role display -->
+  <div id="roleDisplay">You are controlling: <span id="roleText"></span></div>
+  <!-- Input toggle for selecting input method -->
+  <div id="inputToggle">
+    Input method:
+    <label>
+      <input type="radio" name="inputMethod" value="keyboard" checked> Keyboard
+    </label>
+    <label>
+      <input type="radio" name="inputMethod" value="joystick"> Joystick
+    </label>
+  </div>
+  <!-- Timer box -->
+  <div id="timer"></div>
+  <div id="gameContainer">
+    <img id="renderedImage" alt="Game Render">
+    <div id="controls">
+      <div id="buttonMessageRow">
+        <div id="buttonsContainer">
+          <button id="switchRoleBtn">Switch Role</button>
+          <button id="resetBtn">Reset Game</button>
+        </div>
+        <div id="messageBox">
+          Your games are being recorded for training.<br>
+          By playing you agree that the records can be used.
+        </div>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <!-- Virtual Joystick -->
+  <div id="joystickContainer">
+    <div id="joystickBase">
+      <div id="joystickKnob"></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="main.js"></script>
+
+</body>
+</html>
