@@ -1,7 +1,7 @@
-
-const API_URL = CONFIG.API_URL; // Ensure config.js is loaded before this file
+const API_URL = CONFIG.API_URL;
 
 // Global variables
+let playerName = null;
 let humanRole = "predator"; // "predator" or "prey"
 let currentState = null;
 let gameActive = false;
@@ -10,6 +10,8 @@ let inputMethod = "keyboard"; // "keyboard" or "joystick"
 // For keyboard, we keep track of pressed keys.
 let pressedKeys = new Set();
 let currentAction = 0; // For both methods: an angle in radians.
+let canStartGame = true;
+let isResetting = false;
 
 // DOM references.
 const roleTextSpan = document.getElementById("roleText");
@@ -30,7 +32,7 @@ function updateStatus(message) {
 function updateTimer(time) {
   remaining_time = 2.0 - time;
   const floored_remaining_time = Math.floor(remaining_time * 10) / 10;
-  timerDiv.innerText = "Time remaining: " + floored_remaining_time.toFixed(1) + " sec";
+  timerDiv.innerText = "Time remaining: " + floored_remaining_time.toFixed(1) * 10 + " sec";
 }
 
 // Toast message function.
@@ -77,25 +79,46 @@ inputToggleRadios.forEach(radio => {
 // Initialize input method.
 updateInputMethod();
 
+function temporarilyBlockGameStart() {
+  canStartGame = false;
+  setTimeout(() => canStartGame = true, 150); // 150ms cooldown
+}
+
 // Reset the game by calling the backend.
 async function resetGame() {
   try {
+    isResetting = true; // prevent any input triggers
+    gameActive = false;
+    pressedKeys.clear();
+
     const response = await fetch(API_URL + "/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" }
     });
     const data = await response.json();
+
+    if (!data.state || !Array.isArray(data.state)) {
+      throw new Error("Invalid state received from backend.");
+    }
+
     currentState = data.state;
+
+    await updateRender();
+    updateTimer(currentState[0]);
     updateStatus("Game reset. Press any arrow or use the joystick to start!");
     showToast("Game reset!");
-    updateTimer(0.)
-    await updateRender();
-    gameActive = false;
-    // Reset joystick position.
+
     joystickKnob.style.left = "50%";
     joystickKnob.style.top = "50%";
+
+    // Re-allow input after a short pause
+    setTimeout(() => {
+      isResetting = false;
+    }, 200);
   } catch (error) {
     updateStatus("Error resetting game: " + error);
+    console.error(error);
+    isResetting = false;
   }
 }
 
@@ -105,7 +128,8 @@ async function playGame(action) {
     const payload = {
       human_role: humanRole,
       human_action: action,
-      state: currentState
+      state: currentState,
+      player_id: playerName
     };
     const response = await fetch(API_URL + "/play", {
       method: "POST",
@@ -197,7 +221,7 @@ async function gameLoop() {
 window.addEventListener("keydown", (e) => {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
     pressedKeys.add(e.key);
-    if (inputMethod === "keyboard" && !gameActive) {
+  if (inputMethod === "keyboard" && !gameActive && !isResetting) {
       updateStatus("Game started!");
       showToast("Game started!");
       gameActive = true;
@@ -285,9 +309,46 @@ switchRoleBtn.addEventListener("click", async () => {
   await resetGame();
 });
 
-// Initialize game on page load.
-window.onload = async () => {
-  updateRoleDisplay();
-  await resetGame();
-  // Game loop starts only when an arrow key or joystick is used.
-};
+document.addEventListener("DOMContentLoaded", () => {
+  const storedName = sessionStorage.getItem("playerName");
+
+  if (storedName) {
+    playerName = storedName;
+    document.title = `Prey-Predator Game - ${playerName}`;
+    document.getElementById("playerNameDisplay").innerText = `Player: ${playerName}`;
+    updateRoleDisplay();
+    resetGame();
+    return;
+  }
+
+  // Show name modal if no name is stored
+  const nameModal = document.getElementById("nameModal");
+  const nameInput = document.getElementById("nameInput");
+  const submitBtn = document.getElementById("submitNameBtn");
+
+  nameModal.style.display = "flex";
+
+  submitBtn.addEventListener("click", () => {
+    const value = nameInput.value.trim();
+    if (value === "") {
+      alert("Please enter a name to play.");
+    } else if (value.length > 10) {
+      alert("Name must be 10 characters or fewer.");
+    } else {
+      playerName = value;
+      sessionStorage.setItem("playerName", playerName); // 💾 Save for this tab
+      nameModal.style.display = "none";
+      document.title = `Prey-Predator Game - ${playerName}`;
+      document.getElementById("playerNameDisplay").innerText = `Player: ${playerName}`;
+      updateRoleDisplay();
+      resetGame();
+    }
+  });
+
+  nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitBtn.click();
+  });
+
+  nameInput.focus();
+});
+
