@@ -1,4 +1,4 @@
 // config.js
 const CONFIG = {
-  API_URL: "http://188.245.93.10:8000"  // Hetzner
+  API_URL: "https://188.245.93.10"  // Hetzner
 };
