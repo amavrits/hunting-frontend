@@ -57,13 +57,13 @@
       display: flex;
       align-items: flex-start;
       gap: 20px;
+      flex-shrink: 0;
     }
-    /* Rendered image styling: force square and max-width 500px */
-    #renderedImage {
-      border: 1px solid #000;
+    #gameCanvas {
       width: 470px;
       height: 470px;
       object-fit: contain;
+      border: 1px solid #000;
     }
     /* Controls container */
     #controls {
@@ -114,7 +114,7 @@
     /* Virtual Joystick styling */
     #joystickContainer {
       position: fixed;
-      top: 300px;
+      top: 350px;
       left: 550px;
       width: 150px;
       height: 150px;
@@ -198,7 +198,7 @@
   <!-- Timer box -->
   <div id="timer"></div>
   <div id="gameContainer">
-    <img id="renderedImage" alt="Game Render">
+    <canvas id="gameCanvas" width="500" height="500" style="border: 1px solid black;"></canvas>
     <div id="controls">
       <div id="buttonMessageRow">
         <div id="buttonsContainer">
@@ -232,6 +232,24 @@
 
   <script src="src/config.js"></script>
   <script src="src/main.js" defer></script>
+
+  <div id="countdownOverlay" style="
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.6);
+    color: white;
+    font-size: 80px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    pointer-events: none;">
+    <span id="countdownText">3</span>
+  </div>
 
 </body>
 </html>

@@ -1,5 +1,19 @@
 const API_URL = CONFIG.API_URL;
 
+let sessionStartTime = null;
+let lastFrameTime = null;
+let gameStartTime = null;
+let hasSentFirstAction = false;
+const GAME_START_DELAY = 500; // milliseconds to wait after game reset
+const SIMULATION_INTERVAL = 1000 / 30; // 30Hz update cap
+
+let preyTrail = [];
+let predatorTrail = [];
+const MAX_TRAIL_LENGTH = 30; // Trail length
+
+const countdownOverlay = document.getElementById("countdownOverlay");
+const countdownText = document.getElementById("countdownText");
+
 // Global variables
 let playerName = null;
 let humanRole = "predator"; // "predator" or "prey"
@@ -72,6 +86,30 @@ function updateInputMethod() {
   }
 }
 
+function showCountdown(seconds = 3) {
+  return new Promise((resolve) => {
+    countdownOverlay.style.display = "flex";
+    let counter = seconds;
+
+    countdownText.innerText = counter;
+
+    const interval = setInterval(() => {
+      counter--;
+      if (counter > 0) {
+        countdownText.innerText = counter;
+      } else {
+        countdownText.innerText = "GO!";
+      }
+
+      if (counter < 0) {
+        clearInterval(interval);
+        countdownOverlay.style.display = "none";
+        resolve();
+      }
+    }, 1000);
+  });
+}
+
 // Listen for changes in input method toggle.
 inputToggleRadios.forEach(radio => {
   radio.addEventListener("change", updateInputMethod);
@@ -91,6 +129,8 @@ async function resetGame() {
     gameActive = false;
     pressedKeys.clear();
 
+    sessionStartTime = Date.now();  // in milliseconds
+
     const response = await fetch(API_URL + "/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" }
@@ -103,7 +143,12 @@ async function resetGame() {
 
     currentState = data.state;
 
-    await updateRender();
+    preyTrail = [];
+    predatorTrail = [];
+
+    hasSentFirstAction = false;
+
+    renderCanvas(currentState);
     updateTimer(currentState[0]);
     updateStatus("Game reset. Press any arrow or use the joystick to start!");
     showToast("Game reset!");
@@ -120,16 +165,20 @@ async function resetGame() {
     console.error(error);
     isResetting = false;
   }
+  await showCountdown();
+  lastFrameTime = null;
 }
 
 // Call /play endpoint.
 async function playGame(action) {
+const realTimeElapsed = (performance.now() - gameStartTime) / 1000;
   try {
     const payload = {
       human_role: humanRole,
       human_action: action,
       state: currentState,
-      player_id: playerName
+      player_id: playerName,
+      real_time: realTimeElapsed
     };
     const response = await fetch(API_URL + "/play", {
       method: "POST",
@@ -139,30 +188,45 @@ async function playGame(action) {
     const data = await response.json();
     console.log("Play response:", data);
     currentState = data.state;
+
+    const [_, preyX, preyY, predatorX, predatorY] = currentState;
+
+    preyTrail.push([preyX, preyY]);
+    predatorTrail.push([predatorX, predatorY]);
+
+    // Keep only the last MAX_TRAIL_LENGTH positions
+    if (preyTrail.length > MAX_TRAIL_LENGTH) preyTrail.shift();
+    if (predatorTrail.length > MAX_TRAIL_LENGTH) predatorTrail.shift();
+
+    renderCanvas(currentState);
+
     if (humanRole.toLowerCase() === "prey") {
       updateStatus("Avoid the predator until time runs out!");
     }
     if (humanRole.toLowerCase() === "predator") {
       updateStatus("Catch the prey before time runs out!");
     }
-    await updateRender();
+
     time = currentState[0]
     await updateTimer(time);
     if (data.terminated === true) {
-      console.log("Game terminated detected.");
+      console.log("Game terminated");
       updateStatus("Game terminated. Resetting automatically...");
-      // showToast("Game terminated!");
-      if (data.rewards[0] == +1 && humanRole == "prey") {
-        showToast("You won!");
+      if (humanRole == "prey"){
+        if (data.rewards[0] > 0) {
+          showToast("You won!");
+        }
+        if (data.rewards[0] < 0) {
+          showToast("You lost...");
+        }
       }
-      if (data.rewards[0] == +1 && humanRole == "predator") {
-        showToast("You lost...");
-      }
-      if (data.rewards[0] == -1 && humanRole == "predator") {
-        showToast("You won!");
-      }
-      if (data.rewards[0] == -1 && humanRole == "prey") {
-        showToast("You lost...");
+      if (humanRole == "predator"){
+        if (data.rewards[0] < 0) {
+          showToast("You won!");
+        }
+        if (data.rewards[0] > 0) {
+          showToast("You lost...");
+        }
       }
       await resetGame();
       return true;
@@ -174,22 +238,6 @@ async function playGame(action) {
   }
 }
 
-// Fetch the rendered image.
-async function updateRender() {
-  try {
-    const payload = { state: currentState };
-    const response = await fetch(API_URL + "/render", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    document.getElementById("renderedImage").src = "data:image/png;base64," + data.image;
-  } catch (error) {
-    console.error("Error fetching render:", error);
-  }
-}
-
 // Compute the current direction from keyboard keys.
 function computeKeyboardDirection() {
   let dx = 0, dy = 0;
@@ -197,24 +245,120 @@ function computeKeyboardDirection() {
   if (pressedKeys.has("ArrowDown")) dy -= 1;
   if (pressedKeys.has("ArrowLeft")) dx -= 1;
   if (pressedKeys.has("ArrowRight")) dx += 1;
-  if (dx === 0 && dy === 0) return currentAction;
+  if (dx === 0 && dy === 0) return null;
   return Math.atan2(dy, dx);
 }
 
 // Self-calling async game loop.
-async function gameLoop() {
+function gameLoopRAF(timestamp) {
   if (!gameActive) return;
-  if (inputMethod === "keyboard") {
-    currentAction = computeKeyboardDirection();
+
+  if (!lastFrameTime) {
+    lastFrameTime = timestamp;
+    return requestAnimationFrame(gameLoopRAF);
   }
-  // For joystick, currentAction is updated via joystick events.
-  const terminated = await playGame(currentAction);
-  if (terminated) {
-    gameActive = false;
-  } else {
-    await new Promise(resolve => setTimeout(resolve, 10));
-    gameLoop();
+
+  const delta = timestamp - lastFrameTime;
+
+  if (delta >= SIMULATION_INTERVAL) {
+    if (inputMethod === "keyboard") {
+      const newAction = computeKeyboardDirection();
+
+      // Wait for first real input
+      if (!hasSentFirstAction && newAction === null) {
+        return requestAnimationFrame(gameLoopRAF);
+      }
+
+      if (newAction !== null) {
+        currentAction = newAction;
+        hasSentFirstAction = true; // Now allow idle ticks
+      }
+    }
+
+    // For joystick you can also set hasSentFirstAction = true on movement
+
+    playGame(currentAction);
+    lastFrameTime = timestamp;
   }
+
+  requestAnimationFrame(gameLoopRAF);
+}
+
+// Render trail
+function drawTrailLine(trail, color) {
+  const ctx = document.getElementById("gameCanvas").getContext("2d");
+  if (trail.length < 2) return;
+
+  ctx.beginPath();
+  for (let i = 0; i < trail.length; i++) {
+    const [x, y] = trail[i];
+    const cx = x * 500;
+    const cy = (1 - y) * 500;
+    if (i === 0) ctx.moveTo(cx, cy);
+    else ctx.lineTo(cx, cy);
+  }
+
+  ctx.strokeStyle = `rgba(${color}, 0.4)`;  // smooth line, semi-transparent
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawTrailDots(trail, color) {
+  const ctx = document.getElementById("gameCanvas").getContext("2d");
+
+  for (let i = 0; i < trail.length; i++) {
+    const alpha = i / trail.length;
+    const radius = 2 + (4 * alpha);  // newer dots = larger
+
+    const [x, y] = trail[i];
+    ctx.beginPath();
+    ctx.arc(x * 500, (1 - y) * 500, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = `rgba(${color}, ${alpha})`;
+    ctx.fill();
+  }
+}
+
+// Render in frontend
+function renderCanvas(state) {
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  // Clear the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Canvas is 500x500, so scale positions
+  const scale = 500;
+  const radius = 0.2 * scale;  // = 100px on canvas
+
+  const preyX = state[1] * scale;
+  const preyY = (1 - state[2]) * scale;
+  const predatorX = state[3] * scale;
+  const predatorY = (1 - state[4]) * scale;
+
+    // Draw trails
+    drawTrailLine(preyTrail, "0, 0, 255");
+    drawTrailDots(preyTrail, "0, 0, 255");
+    drawTrailLine(predatorTrail, "255, 0, 0");
+    drawTrailDots(predatorTrail, "255, 0, 0");
+
+
+  // Draw prey (blue circle)
+  ctx.beginPath();
+  ctx.arc(preyX, preyY, 10, 0, 2 * Math.PI);
+  ctx.fillStyle = "blue";
+  ctx.fill();
+
+  // Predator radius
+  ctx.beginPath();
+  ctx.arc(predatorX, predatorY, 0.2 * scale, 0, 2 * Math.PI);
+  ctx.fillStyle = "rgba(255, 0, 0, 0.2)";  // red, but semi-transparent
+  ctx.fill();
+
+  // Draw predator (red circle)
+  ctx.beginPath();
+  ctx.arc(predatorX, predatorY, 10, 0, 2 * Math.PI);
+  ctx.fillStyle = "red";
+  ctx.fill();
 }
 
 // Keyboard event listeners for arrow keys.
@@ -222,10 +366,11 @@ window.addEventListener("keydown", (e) => {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
     pressedKeys.add(e.key);
   if (inputMethod === "keyboard" && !gameActive && !isResetting) {
+      gameStartTime = performance.now();
       updateStatus("Game started!");
       showToast("Game started!");
       gameActive = true;
-      gameLoop();
+      requestAnimationFrame(gameLoopRAF);
     }
   }
 });
@@ -278,12 +423,13 @@ joystickContainer.addEventListener("pointerdown", (e) => {
   joystickContainer.setPointerCapture(e.pointerId);
   joystickActive = true;
   updateJoystickKnob(e);
-  if (inputMethod === "joystick" && !gameActive) {
-    updateStatus("Game started!");
-    showToast("Game started!");
-    gameActive = true;
-    gameLoop();
-  }
+  if (inputMethod === "joystick" && !gameActive && !isResetting) {
+      gameStartTime = performance.now();
+      updateStatus("Game started!");
+      showToast("Game started!");
+      gameActive = true;
+      requestAnimationFrame(gameLoopRAF);
+    }
 });
 
 joystickContainer.addEventListener("pointermove", (e) => {
