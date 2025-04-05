@@ -250,6 +250,9 @@ const SIMULATION_INTERVAL = 1000 / 30; // 30Hz
 let lastPlaySent = 0;
 
 function gameLoopRAF(timestamp) {
+
+  console.log("Delta time:", delta.toFixed(2));
+
   if (!gameActive) return;
 
   if (!lastFrameTime) lastFrameTime = timestamp;
