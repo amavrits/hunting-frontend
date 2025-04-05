@@ -5,9 +5,6 @@ let lastFrameTime = null;
 let gameStartTime = null;
 let hasSentFirstAction = false;
 const GAME_START_DELAY = 500; // milliseconds to wait after game reset
-const SIMULATION_INTERVAL = 1000 / 30; // 30Hz update cap
-
-let lastPlaySent = 0;
 
 let preyTrail = [];
 let predatorTrail = [];
@@ -249,18 +246,20 @@ function computeKeyboardDirection() {
 }
 
 // Self-calling async game loop.
+const SIMULATION_INTERVAL = 1000 / 30; // 30Hz
+let lastPlaySent = 0;
+
 function gameLoopRAF(timestamp) {
   if (!gameActive) return;
 
   if (!lastFrameTime) lastFrameTime = timestamp;
   const delta = timestamp - lastFrameTime;
 
-  // render always
+  // Always render for smooth visuals
   renderCanvas(currentState);
   lastFrameTime = timestamp;
 
-  // send play only every 100ms
-  if (timestamp - lastPlaySent >= 100) {
+  if (timestamp - lastPlaySent >= SIMULATION_INTERVAL) {
     if (inputMethod === "keyboard") {
       const newAction = computeKeyboardDirection();
       if (newAction !== null) {
@@ -268,15 +267,15 @@ function gameLoopRAF(timestamp) {
         hasSentFirstAction = true;
       }
     }
+
     if (hasSentFirstAction) {
-      playGame(currentAction);  // fire & forget
+      playGame(currentAction); // Fire and forget
       lastPlaySent = timestamp;
     }
   }
 
   requestAnimationFrame(gameLoopRAF);
 }
-
 
 // Render trail
 function drawTrailLine(trail, color) {
