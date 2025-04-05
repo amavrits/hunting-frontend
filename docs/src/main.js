@@ -43,8 +43,8 @@ function updateStatus(message) {
 }
 
 function updateTimer(time) {
-  const remaining_time = Math.max(0, 2.0 - time);
-  timerDiv.innerText = `Time remaining: ${remaining_time.toFixed(1)} sec`;
+  const remaining_time = Math.max(0, 20.0 - time * 10);
+  timerDiv.innerText = `Time remaining: ${remaining_time.toFixed(0)} sec`;
 }
 
 // Toast message function.
