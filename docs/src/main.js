@@ -7,6 +7,8 @@ let hasSentFirstAction = false;
 const GAME_START_DELAY = 500; // milliseconds to wait after game reset
 const SIMULATION_INTERVAL = 1000 / 30; // 30Hz update cap
 
+let lastPlaySent = 0;
+
 let preyTrail = [];
 let predatorTrail = [];
 const MAX_TRAIL_LENGTH = 30; // Trail length
@@ -44,9 +46,8 @@ function updateStatus(message) {
 }
 
 function updateTimer(time) {
-  remaining_time = 2.0 - time;
-  const floored_remaining_time = Math.floor(remaining_time * 10) / 10;
-  timerDiv.innerText = "Time remaining: " + floored_remaining_time.toFixed(1) * 10 + " sec";
+  const remaining_time = Math.max(0, 2.0 - time);
+  timerDiv.innerText = `Time remaining: ${remaining_time.toFixed(1)} sec`;
 }
 
 // Toast message function.
@@ -129,7 +130,7 @@ async function resetGame() {
     gameActive = false;
     pressedKeys.clear();
 
-    sessionStartTime = Date.now();  // in milliseconds
+    // sessionStartTime = Date.now();  // in milliseconds
 
     const response = await fetch(API_URL + "/reset", {
       method: "POST",
@@ -198,8 +199,6 @@ const realTimeElapsed = (performance.now() - gameStartTime) / 1000;
     if (preyTrail.length > MAX_TRAIL_LENGTH) preyTrail.shift();
     if (predatorTrail.length > MAX_TRAIL_LENGTH) predatorTrail.shift();
 
-    renderCanvas(currentState);
-
     if (humanRole.toLowerCase() === "prey") {
       updateStatus("Avoid the predator until time runs out!");
     }
@@ -253,36 +252,31 @@ function computeKeyboardDirection() {
 function gameLoopRAF(timestamp) {
   if (!gameActive) return;
 
-  if (!lastFrameTime) {
-    lastFrameTime = timestamp;
-    return requestAnimationFrame(gameLoopRAF);
-  }
-
+  if (!lastFrameTime) lastFrameTime = timestamp;
   const delta = timestamp - lastFrameTime;
 
-  if (delta >= SIMULATION_INTERVAL) {
+  // render always
+  renderCanvas(currentState);
+  lastFrameTime = timestamp;
+
+  // send play only every 100ms
+  if (timestamp - lastPlaySent >= 100) {
     if (inputMethod === "keyboard") {
       const newAction = computeKeyboardDirection();
-
-      // Wait for first real input
-      if (!hasSentFirstAction && newAction === null) {
-        return requestAnimationFrame(gameLoopRAF);
-      }
-
       if (newAction !== null) {
         currentAction = newAction;
-        hasSentFirstAction = true; // Now allow idle ticks
+        hasSentFirstAction = true;
       }
     }
-
-    // For joystick you can also set hasSentFirstAction = true on movement
-
-    playGame(currentAction);
-    lastFrameTime = timestamp;
+    if (hasSentFirstAction) {
+      playGame(currentAction);  // fire & forget
+      lastPlaySent = timestamp;
+    }
   }
 
   requestAnimationFrame(gameLoopRAF);
 }
+
 
 // Render trail
 function drawTrailLine(trail, color) {
