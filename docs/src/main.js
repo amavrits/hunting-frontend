@@ -76,15 +76,20 @@ function updateRoleDisplay() {
 }
 
 // Update input method based on the toggle.
+// function updateInputMethod() {
+//   inputMethod = document.querySelector('input[name="inputMethod"]:checked').value;
+//   if (inputMethod === "joystick") {
+//     // Show joystick container.
+//     joystickContainer.style.display = "block";
+//   } else {
+//     // Hide joystick container.
+//     joystickContainer.style.display = "none";
+//   }
+// }
+
 function updateInputMethod() {
-  inputMethod = document.querySelector('input[name="inputMethod"]:checked').value;
-  if (inputMethod === "joystick") {
-    // Show joystick container.
-    joystickContainer.style.display = "block";
-  } else {
-    // Hide joystick container.
-    joystickContainer.style.display = "none";
-  }
+  inputMethod = "joystick";
+  joystickContainer.style.display = "block";
 }
 
 function showCountdown(seconds = 3) {
@@ -474,6 +479,10 @@ switchRoleBtn.addEventListener("click", async () => {
 
 document.addEventListener("DOMContentLoaded", () => {
   const storedName = sessionStorage.getItem("playerName");
+
+  // Force joystick mode on load
+  inputMethod = "joystick";
+  updateInputMethod();  // This will now show joystickContainer
 
   if (storedName) {
     playerName = storedName;
