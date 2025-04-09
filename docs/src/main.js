@@ -13,6 +13,9 @@ const MAX_TRAIL_LENGTH = 30; // Trail length
 const countdownOverlay = document.getElementById("countdownOverlay");
 const countdownText = document.getElementById("countdownText");
 
+let keyboardStartRequested = false;
+let joystickStartRequested = false;
+
 // Global variables
 let playerName = null;
 let humanRole = "predator"; // "predator" or "prey"
@@ -165,6 +168,31 @@ async function resetGame() {
   }
   await showCountdown();
   lastFrameTime = null;
+
+  if (joystickStartRequested && !gameActive) {
+    joystickStartRequested = false;
+    inputMethod = "joystick";
+    document.querySelector('input[value="joystick"]').checked = true;
+    updateInputMethod();
+
+    gameStartTime = performance.now();
+    updateStatus("Game started!");
+    showToast("Game started!");
+    gameActive = true;
+    requestAnimationFrame(gameLoopRAF);
+  }
+  if (keyboardStartRequested && !gameActive) {
+    keyboardStartRequested = false;
+    inputMethod = "keyboard";
+    document.querySelector('input[value="keyboard"]').checked = true;
+    updateInputMethod();
+
+    gameStartTime = performance.now();
+    updateStatus("Game started!");
+    showToast("Game started!");
+    gameActive = true;
+    requestAnimationFrame(gameLoopRAF);
+  }
 }
 
 // Call /play endpoint.
@@ -261,20 +289,21 @@ function gameLoopRAF(timestamp) {
   lastFrameTime = timestamp;
 
   if (timestamp - lastPlaySent >= SIMULATION_INTERVAL) {
-    if (inputMethod === "keyboard") {
+  if (inputMethod === "keyboard") {
       const newAction = computeKeyboardDirection();
       if (newAction !== null) {
         currentAction = newAction;
         hasSentFirstAction = true;
       }
+    } else if (inputMethod === "joystick" && joystickActive) {
+      hasSentFirstAction = true;
     }
 
     if (hasSentFirstAction) {
-      playGame(currentAction); // Fire and forget
+      playGame(currentAction);
       lastPlaySent = timestamp;
     }
   }
-
   requestAnimationFrame(gameLoopRAF);
 }
 
@@ -359,12 +388,8 @@ function renderCanvas(state) {
 window.addEventListener("keydown", (e) => {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
     pressedKeys.add(e.key);
-  if (inputMethod === "keyboard" && !gameActive && !isResetting) {
-      gameStartTime = performance.now();
-      updateStatus("Game started!");
-      showToast("Game started!");
-      gameActive = true;
-      requestAnimationFrame(gameLoopRAF);
+  if (inputMethod === "keyboard" && !gameActive) {
+      keyboardStartRequested = true;
     }
   }
 });
@@ -417,14 +442,12 @@ joystickContainer.addEventListener("pointerdown", (e) => {
   joystickContainer.setPointerCapture(e.pointerId);
   joystickActive = true;
   updateJoystickKnob(e);
-  if (inputMethod === "joystick" && !gameActive && !isResetting) {
-      gameStartTime = performance.now();
-      updateStatus("Game started!");
-      showToast("Game started!");
-      gameActive = true;
-      requestAnimationFrame(gameLoopRAF);
-    }
+  if (!gameActive) {
+    joystickStartRequested = true;
+  }
 });
+
+
 
 joystickContainer.addEventListener("pointermove", (e) => {
   if (!joystickActive) return;

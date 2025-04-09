@@ -1,3 +1,4 @@
+// config.js
 const CONFIG = {
-  API_URL: "https://api.huntinggame.xyz"
+  API_URL: "http://localhost:8000"
 };
