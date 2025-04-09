@@ -208,7 +208,8 @@ const realTimeElapsed = (performance.now() - gameStartTime) / 1000;
       human_action: action,
       state: currentState,
       player_id: playerName,
-      real_time: realTimeElapsed
+      real_time: realTimeElapsed,
+      input_method: inputMethod
     };
     const response = await fetch(API_URL + "/play", {
       method: "POST",
