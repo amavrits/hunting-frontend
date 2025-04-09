@@ -156,7 +156,8 @@ async function resetGame() {
 
     renderCanvas(currentState);
     updateTimer(currentState[0]);
-    updateStatus("Game reset. Press any arrow or use the joystick to start!");
+    // updateStatus("Game reset. Press any arrow or use the joystick to start!");
+    updateStatus("Move the joystick to start the game!");
     showToast("Game reset!");
 
     joystickKnob.style.left = "50%";
@@ -177,9 +178,7 @@ async function resetGame() {
   if (joystickStartRequested && !gameActive) {
     joystickStartRequested = false;
     inputMethod = "joystick";
-    document.querySelector('input[value="joystick"]').checked = true;
     updateInputMethod();
-
     gameStartTime = performance.now();
     updateStatus("Game started!");
     showToast("Game started!");
@@ -409,22 +408,20 @@ const joystickCenter = { x: joystickContainer.offsetWidth / 2, y: joystickContai
 let joystickActive = false;
 
 function updateJoystickKnob(e) {
-  // Get the container's bounding rectangle.
   const rect = joystickContainer.getBoundingClientRect();
-  // Calculate the center of the container.
-  const centerX = rect.width / 2;
-  const centerY = rect.height / 2;
-  // Calculate the pointer's position relative to the container.
+
+  // Calculate pointer position relative to the container
   const posX = e.clientX - rect.left;
   const posY = e.clientY - rect.top;
 
-  // Compute the displacement from the center.
-  let offsetX = posX - centerX;
-  // Invert vertical: subtract pointer's y from center.
-  let offsetY = centerY - posY;
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
 
-  // Limit the knob movement to within the container's radius.
-  const maxRadius = centerX; // Assuming the container is a circle.
+  let offsetX = posX - centerX;
+  let offsetY = posY - centerY;
+
+  // Limit knob movement to stay inside the container
+  const maxRadius = centerX; // assume circle
   let distance = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
   if (distance > maxRadius) {
     const ratio = maxRadius / distance;
@@ -432,22 +429,20 @@ function updateJoystickKnob(e) {
     offsetY *= ratio;
   }
 
-  // Update knob position.
-  // For horizontal, we add the offset to center.
-  joystickKnob.style.left = (centerX + offsetX) + "px";
-  // For vertical, because we inverted the offset, we subtract it from center.
-  joystickKnob.style.top = (centerY - offsetY) + "px";
+  // Move the knob within the container
+  joystickKnob.style.left = `${centerX + offsetX}px`;
+  joystickKnob.style.top = `${centerY + offsetY}px`;
 
-  // Compute the angle (in radians) from the center using the adjusted offsets.
-  let angle = Math.atan2(offsetY, offsetX);
-  currentAction = angle;
+  // Update currentAction (invert Y to match game)
+  currentAction = Math.atan2(-offsetY, offsetX);
 }
+
 // Set up pointer events on the joystick container.
 joystickContainer.addEventListener("pointerdown", (e) => {
-  joystickContainer.setPointerCapture(e.pointerId);
   joystickActive = true;
+  joystickContainer.setPointerCapture(e.pointerId);
   updateJoystickKnob(e);
-  if (!gameActive) {
+  if (!gameActive && !isResetting) {
     joystickStartRequested = true;
   }
 });
