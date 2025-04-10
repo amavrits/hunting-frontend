@@ -16,33 +16,41 @@
       margin-bottom: 10px;
     }
 
-    #centerWrapper {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-
     #gameContainer {
       display: flex;
       justify-content: center;
       align-items: flex-start;
       gap: 20px;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
+    }
+
+    #leftControls {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 470px;
+    }
+
+    #rightControls {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start; /* top-align the content */
+      align-items: flex-start;     /* left-align the content */
+      height: 470px;
+      padding-top: 20px;           /* optional spacing from top */
+    }
+
+    #buttonsContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
     #gameCanvas {
       width: 470px;
       height: 470px;
       border: 1px solid black;
-    }
-
-    #controls {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: center;
     }
 
     button {
@@ -61,17 +69,23 @@
       background-color: #555;
     }
 
-    #messageBox {
-      border: 1px solid #000;
-      padding: 10px;
-      font-size: 16px;
-      max-width: 400px;
-      text-align: center;
+    #timer {
+      font-size: 20px;
+      font-weight: bold;
+      background-color: #222;
+      color: #0f0; /* Green glow */
+      padding: 8px 16px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 10px;
+      /*box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);*/
     }
-
-    #status, #timer {
-      font-size: 16px;
-      margin-top: 10px;
+    #status {
+      font-size: 18px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      text-align: left;
+      max-width: 200px;
     }
 
     #roleDisplay {
@@ -110,7 +124,6 @@
       position: fixed;
       bottom: 200px;
       right: 300px;
-      transform: none;
       width: 150px;
       height: 150px;
       background: rgba(0, 0, 0, 0.1);
@@ -142,7 +155,7 @@
       top: 0; left: 0;
       width: 100vw; height: 100vh;
       background-color: rgba(0, 0, 0, 0.7);
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 9999;
@@ -202,18 +215,9 @@
         bottom: 40px;
       }
 
-      #messageBox {
-        max-width: 90vw;
-        text-align: center;
-      }
-
       button {
         width: 90vw;
         max-width: 300px;
-      }
-
-      body {
-        font-size: 16px;
       }
 
       #countdownOverlay {
@@ -223,7 +227,6 @@
       #nameModalContent {
         padding: 20px;
       }
-
     }
   </style>
 </head>
@@ -234,50 +237,63 @@
   <div id="toastContainer"></div>
 
   <div id="roleDisplay">
-    You are controlling the: <span id="roleText"></span><br />
+    You are controlling the: <span id="roleText">Predator</span><br />
     <span id="playerNameDisplay"></span>
   </div>
 
   <div id="timer"></div>
 
-  <div id="centerWrapper">
-    <div id="gameContainer">
-      <div id="messageBox">
-        Your games are being recorded for training.<br />
-        By playing you agree that the records can be used.
+  <div id="gameContainer">
+    <div id="leftControls">
+      <div id="buttonsContainer">
+        <button id="switchRoleBtn">Switch Role</button>
+        <button id="resetBtn">Reset Game</button>
       </div>
+    </div>
 
-      <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
 
-      <div id="controls">
-        <div id="buttonsContainer">
-          <button id="switchRoleBtn">Switch Role</button>
-          <button id="resetBtn">Reset Game</button>
-        </div>
-        <div id="status"></div>
-      </div>
+    <div id="rightControls">
+      <div id="status"></div>
     </div>
   </div>
 
-  <!-- Joystick -->
   <div id="joystickContainer">
     <div id="joystickBase">
       <div id="joystickKnob"></div>
     </div>
   </div>
 
-  <!-- Name modal -->
-  <div id="nameModal" style="display: none;">
+  <div id="countdownOverlay">
+    <span id="countdownText">3</span>
+  </div>
+
+  <div id="nameModal">
     <div id="nameModalContent">
       <h2>Enter your name</h2>
-      <input type="text" id="nameInput" maxlength="10" placeholder="Max 10 characters" />
+      <input id="nameInput" type="text" placeholder="Your name" maxlength="10" />
+      <br />
       <button id="submitNameBtn">Start Game</button>
     </div>
   </div>
 
-  <!-- Countdown -->
-  <div id="countdownOverlay">
-    <span id="countdownText">3</span>
+  <div id="splashOverlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.6); color: white; font-size: 24px; font-weight: bold; align-items: center; justify-content: center; z-index: 1500;">
+    <div id="splashContent" style="text-align: center;">
+      <p style="margin-bottom: 20px;">
+        Welcome to the Hunting Game!<br>
+        Use the joystick to control your character.<br>
+        The <span style="color: red;">predator</span> must catch the prey before the time runs out!<br>
+        The <span style="color: blue;">prey</span> needs to survive for the remaining time!<br><br>
+        Disclaimer:<br>
+        Your games are being recorded. By playing you consent that the<br>
+        game records can be used for further training the game's AI.<br><br>
+        Note:<br>
+        Tilt your screen if you're playing on mobile!
+      </p>
+      <button id="splashStartBtn" style="padding: 12px 24px; font-size: 18px; background-color: white; color: black; border: none; border-radius: 8px; cursor: pointer;">
+        Okay, let’s play!
+      </button>
+    </div>
   </div>
 
   <script src="src/config.js"></script>
