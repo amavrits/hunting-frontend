@@ -187,6 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       const data = await res.json();
       currentState = data.state;
 
@@ -205,7 +206,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (data.terminated) {
         updateStatus("Game terminated. Resetting...");
-        const reward = data.rewards[0];
+        let reward;
+        if (humanRole === "prey") {
+          reward = data.rewards[0];
+        }
+        if (humanRole === "predator") {
+          reward = data.rewards[1];
+        }
         showToast(reward > 0 ? "You won!" : "You lost...");
         await resetGame();
       }
